@@ -8,10 +8,11 @@ import java.util.Properties;
 public class CloudDriverProperties {
 
 	private static String imageId;
-	private static String securityGroup;
+	private static String securityGroupId;
 	private static String instanceType;
 	private static String accessKey;
 	private static String secretKey;
+	private static String subnetId;
 
 	private static CloudDriverProperties properties;
 
@@ -36,13 +37,13 @@ public class CloudDriverProperties {
 
 			input = new FileInputStream("Ec2Driver.properties");
 
-			// load a properties file
 			prop.load(input);
 			imageId = prop.getProperty("imageId");
-			securityGroup = prop.getProperty("securityGroup");
+			securityGroupId = prop.getProperty("securityGroupId");
 			instanceType = prop.getProperty("instanceType");
 			accessKey = prop.getProperty("accessKey");
 			secretKey = prop.getProperty("secretKey");
+			subnetId = prop.getProperty("subnetId");
 
 		} catch (IOException ex) {
 			ex.printStackTrace();
@@ -68,12 +69,12 @@ public class CloudDriverProperties {
 		CloudDriverProperties.imageId = imageId;
 	}
 
-	public static String getSecurityGroup() {
-		return securityGroup;
+	public static String getSecurityGroupId() {
+		return securityGroupId;
 	}
 
-	public static void setSecurityGroup(String securityGroup) {
-		CloudDriverProperties.securityGroup = securityGroup;
+	public static void setSecurityGroupId(String securityGroupId) {
+		CloudDriverProperties.securityGroupId = securityGroupId;
 	}
 
 	public static String getInstanceType() {
@@ -107,5 +108,15 @@ public class CloudDriverProperties {
 	public static void setProperties(CloudDriverProperties properties) {
 		CloudDriverProperties.properties = properties;
 	}
+
+	public static String getSubnetId() {
+		return subnetId;
+	}
+
+	public static void setSubnetId(String subnetId) {
+		CloudDriverProperties.subnetId = subnetId;
+	}
+	
+	
 
 }

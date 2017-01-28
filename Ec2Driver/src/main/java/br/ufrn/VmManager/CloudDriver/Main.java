@@ -5,20 +5,19 @@ import br.ufrn.VmManager.model.VirtualMachine;
 
 public class Main {
 
-	public Main() {
-		// TODO Auto-generated constructor stub
-	}
+	public static void main(String[] args) throws CloudException {
+		
+		
+		CloudDriverInterface cloudDriver = new Ec2Driver();
 
-	public static void main(String[] args) throws CloudException, InterruptedException {
 		
-		CloudDriverInterface ec2 = new Ec2Driver();
+		//System.out.println(cloudDriver.createVM());
 		
-		VirtualMachine vm = ec2.createVM();
-		System.out.println(vm);
+		VirtualMachine vm = new VirtualMachine();
 		
-		Thread.sleep(35 * 1000);
+		vm.setId("i-0daf5d97ff855c976");
 		
-		ec2.deleteVM(vm);
+		cloudDriver.deleteVM(vm);
 
 	}
 

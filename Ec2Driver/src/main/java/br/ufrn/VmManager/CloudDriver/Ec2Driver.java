@@ -1,15 +1,15 @@
 package br.ufrn.VmManager.CloudDriver;
 
-import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Collection;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.ec2.AmazonEC2Client;
+import com.amazonaws.services.ec2.model.Instance;
+import com.amazonaws.services.ec2.model.RunInstancesRequest;
+import com.amazonaws.services.ec2.model.RunInstancesResult;
+import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
+import com.amazonaws.services.ec2.model.TerminateInstancesResult;
 
 import br.ufrn.VmManager.Exceptions.CloudException;
 import br.ufrn.VmManager.model.IpAddress;
@@ -19,127 +19,73 @@ import br.ufrn.VmManager.model.VmState;
 
 public class Ec2Driver implements CloudDriverInterface {
 
-	private Ec2Actions ec2 = new Ec2Actions();
-
-	public Ec2Driver() {
-		// TODO Auto-generated constructor stub
-	}
-
-	private static String getChildTagValue(Element elem, String tagName)
-			throws Exception {
-		NodeList children = elem.getElementsByTagName(tagName);
-		String result = null;
-
-		if (children == null) {
-			return result;
-		}
-
-		Element child = (Element) children.item(0);
-
-		if (child == null) {
-			return result;
-		}
-
-		result = child.getTextContent().trim();
-
-		return result;
-	}
-
-	private IpAddress getIpAddres(String VmId) throws CloudException {
-
-		IpAddress ip = null;
-
-		DocumentBuilder db;
-
-		try {
-			String response = ec2.DescribeInstances(new String[] { VmId });
-
-			db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-			InputSource is = new InputSource();
-			is.setCharacterStream(new StringReader(response));
-			Document doc = db.parse(is);
-
-			NodeList nodes = doc.getElementsByTagName("instancesSet");
-
-			Element element = (Element) nodes.item(0);
-
-			String ipNumber = getChildTagValue(element, "ipAddress");
-
-			if (ipNumber != null && !ipNumber.equals("")) {
-				ip = new IpAddress();
-				ip.setIp(ipNumber);
-				ip.setPublic(false);
-
-				return ip;
-
-			}
-
-		} catch (ParserConfigurationException e) {
-			throw new CloudException(e.getMessage());
-		} catch (Exception e) {
-			throw new CloudException(e.getMessage());
-		}
-
-		return null;
-	}
-
-	private VirtualMachine getVM(Element element) throws CloudException {
+	public VirtualMachine createVM() throws CloudException {
 
 		VirtualMachine vm = null;
 		try {
+
+			CloudDriverProperties properties = CloudDriverProperties
+					.getInstance();
+
+			AmazonEC2Client amazonEC2Client = new AmazonEC2Client(
+					new BasicAWSCredentials(properties.getAccessKey(),
+							properties.getSecretKey()));
+
+			amazonEC2Client.setEndpoint("ec2.us-east-1.amazonaws.com");
+
+			RunInstancesRequest runInstancesRequest = new RunInstancesRequest();
+
+			runInstancesRequest.withImageId(properties.getImageId())
+					.withInstanceType(properties.getInstanceType())
+					.withMinCount(1).withMaxCount(1)
+					.withSubnetId(properties.getSubnetId())
+					.withSecurityGroupIds(properties.getSecurityGroupId());
+
+			RunInstancesResult runInstancesResult = amazonEC2Client
+					.runInstances(runInstancesRequest);
+
 			vm = new VirtualMachine();
-			vm.setId(getChildTagValue(element, "instanceId"));
-			vm.setImage(getChildTagValue(element, "imageId"));
-			vm.setTemplate(getChildTagValue(element, "instanceType"));
 
-			IpAddress ip = null;
-			while (ip == null) {
-				ip = getIpAddres(vm.getId());
-				// TODO pode gerar loop infinito, rever depois
-				Thread.sleep(5 * 1000);
-			}
+			Instance instance = runInstancesResult.getReservation()
+					.getInstances().get(0);
 
-			vm.setIpAddress(ip);
+			vm.setId(instance.getInstanceId());
+			vm.setImage(instance.getImageId());
+
+			IpAddress private_ip = new IpAddress();
+			private_ip.setIp(instance.getPrivateIpAddress());
+			private_ip.setPublic(false);
+			vm.setIpAddress(private_ip);
+
 			vm.setState(VmState.RUNNING);
+			vm.setTemplate(instance.getInstanceType());
 
 		} catch (Exception e) {
 			throw new CloudException(e.getMessage());
 		}
-
 		return vm;
-	}
-
-	public VirtualMachine createVM() throws CloudException {
-		VirtualMachine virtualMachine = null;
-
-		DocumentBuilder db;
-
-		try {
-			String response = ec2.runInstances();
-
-			db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-			InputSource is = new InputSource();
-			is.setCharacterStream(new StringReader(response));
-			Document doc = db.parse(is);
-
-			NodeList nodes = doc.getElementsByTagName("instancesSet");
-
-			Element element = (Element) nodes.item(0);
-
-			virtualMachine = getVM(element);
-
-			return virtualMachine;
-
-		} catch (ParserConfigurationException e) {
-			throw new CloudException(e.getMessage());
-		} catch (Exception e) {
-			throw new CloudException(e.getMessage());
-		}
 	}
 
 	public void deleteVM(VirtualMachine vm) throws CloudException {
 		try {
-			String resp = ec2.terminateInstances(new String[] { vm.getId() });
+
+			CloudDriverProperties properties = CloudDriverProperties
+					.getInstance();
+
+			AmazonEC2Client amazonEC2Client = new AmazonEC2Client(
+					new BasicAWSCredentials(properties.getAccessKey(),
+							properties.getSecretKey()));
+
+			TerminateInstancesRequest terminateInstancesRequest = new TerminateInstancesRequest();
+
+			Collection<String> instanceIds = new ArrayList<String>();
+			instanceIds.add(vm.getId());
+			terminateInstancesRequest.setInstanceIds(instanceIds);
+
+			TerminateInstancesResult result = amazonEC2Client
+		
+					.terminateInstances(terminateInstancesRequest);
+			
 		} catch (Exception e) {
 			throw new CloudException(e.getMessage());
 		}
